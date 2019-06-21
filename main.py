@@ -129,7 +129,7 @@ class Data(object):
 
     def compare_for_group(self, user):
         if self.age != 0 and user.age != 0:
-            if abs(self.age - user.age) < self.tolerance:
+            if abs(self.age - user.age) <= self.tolerance:
                 pass
             else:
                 return False
