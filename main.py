@@ -221,7 +221,8 @@ def get_common_groups(researched_user):
 
 
 def get_account_info(user):
-    data = open('data/id' + str(user.user_id) + '/data' + str(user.user_id) + '.txt', 'w')
+
+    data = open('data/users/id%d/info.txt' % user.user_id, 'w')
     fields = 'bdate,sex,contacts,connections,country,city,personal,schools,universities'
     request = api.users.get(user_ids=user.user_id, fields=fields, v=api_version)[0]
 
@@ -500,8 +501,9 @@ def click_button_start():
     messagebox.showinfo("Success", "You can find result in data/groups directory")
 
 
-def click_button_group():
-    researched_user = Data(get_user_id(user_txt_msg.get()))
+def click_button_start_group():
+    user_id = get_user_id(user_txt_msg.get())
+    researched_user = Data(user_id)
 
     try:
         os.mkdir("data\\users\\id" + str(researched_user.user_id))
@@ -509,6 +511,7 @@ def click_button_group():
         pass
 
     get_common_groups(researched_user)
+    get_account_info(researched_user)
     messagebox.showinfo("Success", "You can find result in data/users directory")
 
 
@@ -590,7 +593,7 @@ user_txt = Entry(tab2, textvariable=user_txt_msg, width=24, font=("Open sans", 1
 user_txt.grid(column=2, row=0, columnspan=2)
 user_txt.focus()
 
-group_btn = Button(tab2, text="Check groups", font=("Open sans", 15), command=click_button_group)
+group_btn = Button(tab2, text="Get info", font=("Open sans", 15), command=click_button_start_group)
 group_btn.grid(column=0, row=1, columnspan=4)
 
 ideal_user = Data(0)
