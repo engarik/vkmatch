@@ -1,4 +1,5 @@
 import vk
+import requests
 import webbrowser
 import os
 import time
@@ -22,7 +23,7 @@ def get_token():
             os.remove('token.txt')
             return get_token()
     else:
-        scope = 'friends,groups'
+        scope = 'friends,groups,photos'
         redirect_uri = 'https://oauth.vk.com/blank.html'
 
         webbrowser.open(
@@ -354,6 +355,48 @@ def get_common(array_a, array_b):
     return common
 
 
+def get_photos(user):
+    api_version_local = 5.80
+    response = api.photos.getAll(owner_id=user.user_id, extended=0, count=200, v=api_version_local)
+    print(response)
+    photos = response['items']
+    print(photos)
+    count = int(response['count'])
+    path = "data/users/id" + str(user.user_id) + "/images/"
+    print(count)
+
+    try:
+        os.mkdir(path)
+    except FileExistsError:
+        pass
+
+    if count > 200:
+        rem = count
+        n = 0
+        while rem > 0:
+            if rem > 200:
+                response = api.photos.getAll(owner_id=user.user_id, extended=0, offset=200 * n, count=200, v=api_version_local)
+                num = 200
+            else:
+                response = api.photos.getAll(owner_id=user.user_id, extended=0, offset=200 * n, count=rem, v=api_version_local)
+                num = rem
+
+            photos = response['items']
+            for i in range(num):
+                p = requests.get(photos[i]['photo_130'])
+                out = open(path + "img_" + str(i + 200 * n) + ".jpg", "wb")
+                out.write(p.content)
+                out.close()
+            rem -= 200
+            n += 1
+    else:
+        for i in range(count):
+            p = requests.get(photos[i]['photo_130'])
+            out = open(path + "img_" + str(i) + ".jpg", "wb")
+            out.write(p.content)
+            out.close()
+
+
 def parse(to_parse, key, extra_key=''):
     try:
         if to_parse[key] != '' and to_parse[key] != []:
@@ -480,7 +523,7 @@ def scan(group_id):
     print('match', len(match))
 
 
-def click_button_start():
+def click_button_start_group():
     print('clicked')
 
     group = group_txt_msg.get()
@@ -501,7 +544,7 @@ def click_button_start():
     messagebox.showinfo("Success", "You can find result in data/groups directory")
 
 
-def click_button_start_group():
+def click_button_start_user():
     user_id = get_user_id(user_txt_msg.get())
     researched_user = Data(user_id)
 
@@ -512,6 +555,7 @@ def click_button_start_group():
 
     get_common_groups(researched_user)
     get_account_info(researched_user)
+    get_photos(researched_user)
     messagebox.showinfo("Success", "You can find result in data/users directory")
 
 
@@ -575,7 +619,7 @@ city_txt = Entry(tab1, textvariable=city_txt_msg, width=22, font=("Open sans", 1
 city_txt.grid(column=2, row=4, columnspan=2)
 city_txt.insert(0, '0')
 
-start = Button(tab1, text="Start", font=("Open sans", 15), command=click_button_start)
+start = Button(tab1, text="Start", font=("Open sans", 15), command=click_button_start_group)
 start.grid(column=0, row=11, columnspan=4)
 
 progressbar = ttk.Progressbar(tab1, orient="horizontal", length=300, mode="determinate")
@@ -593,7 +637,7 @@ user_txt = Entry(tab2, textvariable=user_txt_msg, width=24, font=("Open sans", 1
 user_txt.grid(column=2, row=0, columnspan=2)
 user_txt.focus()
 
-group_btn = Button(tab2, text="Get info", font=("Open sans", 15), command=click_button_start_group)
+group_btn = Button(tab2, text="Get info", font=("Open sans", 15), command=click_button_start_user)
 group_btn.grid(column=0, row=1, columnspan=4)
 
 ideal_user = Data(0)
