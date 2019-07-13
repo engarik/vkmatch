@@ -1,3 +1,4 @@
+# TODO: Separate in different files
 import vk
 import requests
 import webbrowser
@@ -223,6 +224,8 @@ def get_common_groups(researched_user):
 
 def get_account_info(user):
 
+    # TODO: Add collecting more info. Optimize number of requests.
+
     data = open('data/users/id%d/info.txt' % user.user_id, 'w')
     fields = 'bdate,sex,contacts,connections,country,city,personal,schools,universities'
     request = api.users.get(user_ids=user.user_id, fields=fields, v=api_version)[0]
@@ -356,7 +359,7 @@ def get_common(array_a, array_b):
 
 
 def get_photos(user):
-    api_version_local = 5.80
+    api_version_local = 5.80 # TODO: Update to the current api version
     response = api.photos.getAll(owner_id=user.user_id, extended=0, count=200, v=api_version_local)
     print(response)
     photos = response['items']
