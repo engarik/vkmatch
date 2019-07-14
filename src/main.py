@@ -1,57 +1,14 @@
 # TODO: Separate in different files
+import src.utils
+from src.values import api_version, token
 import vk
 import requests
-import webbrowser
 import os
 import time
 from datetime import datetime
 from tkinter import *
 import tkinter.ttk as ttk
 from tkinter import messagebox
-
-api_version = 5.95
-client_id = 7016529
-
-
-def get_token():
-    if os.path.isfile('token.txt'):
-        f = open('token.txt', 'r')
-        if int(time.time()) - int(f.readline().rstrip('\n')) < 84600:
-            print('Token was found')
-            return f.readline()
-        else:
-            f.close()
-            os.remove('token.txt')
-            return get_token()
-    else:
-        scope = 'friends,groups,photos'
-        redirect_uri = 'https://oauth.vk.com/blank.html'
-
-        webbrowser.open(
-            'https://oauth.vk.com/authorize?client_id=%d&display=page&redirect_uri=%s&scope=%s&response_type=token&v=%d' % (
-                client_id, redirect_uri, scope, api_version))
-        print('Copy token from address bar and input it here:')
-        res = input()
-
-        f = open('token.txt', 'w')
-        f.write(str(int(time.time())) + '\n' + res)
-        return res
-
-
-def get_user_id(name):
-    if len(name) == 10 and name.startswith('id'):
-        id_res = int(name[2:])
-    elif name.isnumeric():
-        id_res = int(name)
-    elif name.startswith('https://vk.com/'):
-        if name.startswith('https://vk.com/id'):
-            id_res = int(name[17:len(name)])
-        else:
-            id_res = api.users.get(user_ids=name[15:len(name)], v=api_version)[0]['id']
-    else:
-        id_res = api.users.get(user_ids=name, v=api_version)[0]['id']
-
-    return id_res
 
 
 class Data(object):
@@ -161,18 +118,10 @@ class Data(object):
         return True
 
     def print_for_group(self):
-        print('id', self.user_id, 'age', self.age, 'sex', self.sex, 'country', self.county,
-              'city', self.city)
+        if src.values.debug:
+            print('id', self.user_id, 'age', self.age, 'sex', self.sex, 'country', self.county,
+                  'city', self.city)
 
-
-try:
-    os.mkdir("data\\")
-    os.mkdir("data\\groups")
-    os.mkdir("data\\users")
-except FileExistsError:
-    pass
-
-token = get_token()
 
 session = vk.Session(token)
 api = vk.API(session)
@@ -192,23 +141,9 @@ def get_common_groups(researched_user):
     common_public_subs = get_common(my_public_subs_list, users_public_subs_list)
     ids = ''
 
-    if len(common_public_subs) < 500:
-        for group in common_public_subs:
-            ids += str(group) + ','
-    # else:
-    #     offset = 0
-    #     value = 500
-    #     n = len(common_public_subs)
-    #     while n > 0:
-    #         for i in range(offset, value + offset):
-    #             ids += str(common_public_subs[i]) + ','
-    #         if n - 500 < 0:
-    #             value = n
-    #         else:
-    #             n = offset - 500
-    #             offset += 500
-    #
-    # ids = ids[0:len(ids) - 1]
+    for group in common_public_subs:
+        ids += str(group) + ','
+
     if len(ids) != 0:
         common_public_subs_names = api.groups.getById(group_ids=ids, v=api_version)
 
@@ -223,7 +158,6 @@ def get_common_groups(researched_user):
 
 
 def get_account_info(user):
-
     # TODO: Add collecting more info. Optimize number of requests.
 
     data = open('data/users/id%d/info.txt' % user.user_id, 'w')
@@ -359,7 +293,7 @@ def get_common(array_a, array_b):
 
 
 def get_photos(user):
-    api_version_local = 5.80 # TODO: Update to the current api version
+    api_version_local = 5.80  # TODO: Update to the current api version
     response = api.photos.getAll(owner_id=user.user_id, extended=0, count=200, v=api_version_local)
     print(response)
     photos = response['items']
@@ -378,10 +312,12 @@ def get_photos(user):
         n = 0
         while rem > 0:
             if rem > 200:
-                response = api.photos.getAll(owner_id=user.user_id, extended=0, offset=200 * n, count=200, v=api_version_local)
+                response = api.photos.getAll(owner_id=user.user_id, extended=0, offset=200 * n, count=200,
+                                             v=api_version_local)
                 num = 200
             else:
-                response = api.photos.getAll(owner_id=user.user_id, extended=0, offset=200 * n, count=rem, v=api_version_local)
+                response = api.photos.getAll(owner_id=user.user_id, extended=0, offset=200 * n, count=rem,
+                                             v=api_version_local)
                 num = rem
 
             photos = response['items']
@@ -449,10 +385,12 @@ def scan(group_id):
     progressbar["maximum"] = group_members
 
     start = time.time()
-    if abs(group_members - len(group_response)) > 10 or len(group_response) == 0:
+    if abs(group_members - len(group_response)) > 20 or len(group_response) == 0:
+        print(abs(group_members - len(group_response)))
         group_response.clear()
-        print('debug mem', group_members)
-        print('debug len', len(group_response))
+        if src.values.debug:
+            print('debug mem', group_members)
+            print('debug len', len(group_response))
         if group_members > 500:
             count = 500
         else:
@@ -486,26 +424,23 @@ def scan(group_id):
                 group_response.extend(response)
             except TypeError:
                 response = []
-            print(time.time() - before)
+
+            if src.values.debug:
+                print("Took time", time.time() - before)
 
             new_len += len(response)
             progressbar["value"] = new_len
             progressbar.update()
-            print('new_len', new_len)
             offset += new_len - prev_len
-            print('offset', offset)
-            print('prev_len', prev_len)
             prev_len = new_len
-            print('offset + count', offset + count)
-            print('group_members', group_members)
             if offset + count > group_members:
                 count = offset - group_members
-            if abs(new_len - group_members) < 10:
+            if abs(new_len - group_members) < 20:
                 flag = False
+    if src.values.debug:
+        print(len(group_response))
 
-    print(len(group_response))
-
-    print('total', time.time() - start)
+        print('total', time.time() - start)
 
     match = []
     progressbar["value"] = 0
@@ -516,10 +451,11 @@ def scan(group_id):
         if ideal_user.compare_for_group(to_match):
             to_match.print_for_group()
             match.append(to_match.user_id)
-            # print(person)
 
     result.write(str(len(match)))
     result.write('\n')
+    result.write("sex:%d age:%d tolerance:%d country:%d city:%d\n" % (
+        ideal_user.sex, ideal_user.age, ideal_user.tolerance, ideal_user.county, ideal_user.city))
     for match_id in match:
         result.write('https://vk.com/id' + str(match_id))
         result.write('\n')
@@ -528,7 +464,6 @@ def scan(group_id):
 
 def click_button_start_group():
     print('clicked')
-
     group = group_txt_msg.get()
     print('group', group_txt_msg.get())
 
@@ -548,7 +483,7 @@ def click_button_start_group():
 
 
 def click_button_start_user():
-    user_id = get_user_id(user_txt_msg.get())
+    user_id = src.utils.get_user_id(user_txt_msg.get(), api)
     researched_user = Data(user_id)
 
     try:
@@ -640,20 +575,21 @@ user_txt = Entry(tab2, textvariable=user_txt_msg, width=24, font=("Open sans", 1
 user_txt.grid(column=2, row=0, columnspan=2)
 user_txt.focus()
 
+get_photos_bool = IntVar()
+get_photos_checkbutton = Checkbutton(tab2, text="Photos", font=("Open sans", 12), variable=get_photos_bool)
+get_photos_checkbutton.grid(column=0, row=1, columnspan=2)
+
+get_cmn_groups_bool = IntVar()
+get_cmn_groups_bool.set(1)
+get_cmn_groups_checkbutton = Checkbutton(tab2, text="Common groups", font=("Open sans", 12),
+                                         variable=get_cmn_groups_bool)
+get_cmn_groups_checkbutton.grid(column=2, row=1, columnspan=2)
+
 group_btn = Button(tab2, text="Get info", font=("Open sans", 15), command=click_button_start_user)
-group_btn.grid(column=0, row=1, columnspan=4)
+group_btn.grid(column=0, row=2, columnspan=4)
 
 ideal_user = Data(0)
 group_response = []
 
 window.focus_force()
 window.mainloop()
-
-#
-# get_account_info(researched_user)
-# get_account_info(my_user)
-#
-# researched_user.compare(my_user)
-#
-# # print('\nCommon groups')  # to repair
-# # get_common_groups()
